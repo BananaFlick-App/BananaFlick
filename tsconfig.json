@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "exclude": [
+    "node_modules",
+    "**/supabase/functions/**",
+    "**/backend/**"
+  ]
+}
+
