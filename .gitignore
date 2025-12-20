@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 */node_modules/
-
+./frontend/%ProgramData%/
 # Environment variables
 ./backend/.env
 .env.local
