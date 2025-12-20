@@ -13,4 +13,5 @@
     "**/supabase/**"
   ],
   "extends": "expo/tsconfig.base"
+
 }

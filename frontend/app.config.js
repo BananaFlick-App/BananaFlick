@@ -1,7 +1,11 @@
 import { SUPABASE_URL } from "./src/config/env";
 
 export default {
+
   expo: {
+    android: {
+      package: "com.psgtatitos.bananaflick"
+     },
     name: "BananaFlick",
     slug: "bananaflick",
     extra: {

@@ -7,6 +7,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
+  "android": {
+    "package": "com.psgtatitos.bananaflick"
+  },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
