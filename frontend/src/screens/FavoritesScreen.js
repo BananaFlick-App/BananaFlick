@@ -12,7 +12,7 @@ export default function FavoritesScreen() {
 
   useEffect(() => {
     loadFavorites();
-    
+
     // Refresh when screen comes into focus
     const unsubscribe = navigation.addListener('focus', () => {
       loadFavorites();
@@ -22,6 +22,7 @@ export default function FavoritesScreen() {
   }, [navigation]);
 
   const loadFavorites = async () => {
+    console.log('Loading favorites...');
     setLoading(true);
     try {
       const data = await apiClient.getFavorites();
@@ -35,6 +36,9 @@ export default function FavoritesScreen() {
 
   const getPosterUrl = (meta) => {
     if (meta?.poster_path) {
+      // If poster_path is already a full URL (from XMDB), use it directly
+      if (meta.poster_path.startsWith('http')) return meta.poster_path;
+      // Otherwise assume it's a TMDB relative path
       return `https://image.tmdb.org/t/p/w500${meta.poster_path}`;
     }
     return null;

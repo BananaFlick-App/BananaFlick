@@ -18,10 +18,15 @@ export default function DetailsScreen({ route }) {
   const loadMovieDetails = async () => {
     setLoading(true);
     try {
-      const data = await apiClient.getMovieDetails(parseInt(movieId));
+      const data = await apiClient.getMovieDetails(movieId);
+      console.log('Got movie details:', data);
       setMovie(data);
     } catch (error) {
       console.error('Error loading movie details:', error);
+      if (error.response) {
+        console.error('Error info:', error.response.data);
+        console.error('Status:', error.response.status);
+      }
     } finally {
       setLoading(false);
     }
@@ -29,11 +34,13 @@ export default function DetailsScreen({ route }) {
 
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
+    if (posterPath.startsWith('http')) return posterPath;
     return `https://image.tmdb.org/t/p/w500${posterPath}`;
   };
 
   const getBackdropUrl = (backdropPath) => {
     if (!backdropPath) return null;
+    if (backdropPath.startsWith('http')) return backdropPath;
     return `https://image.tmdb.org/t/p/w1280${backdropPath}`;
   };
 

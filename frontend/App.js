@@ -64,7 +64,7 @@ export default function App() {
     // Try to initialize and check onboarding status
     try {
       checkOnboardingStatus();
-      
+
       // Listen for auth changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
@@ -84,7 +84,7 @@ export default function App() {
     try {
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         // Create anonymous session for new users
         console.log('Signing in anonymously...');
@@ -97,7 +97,7 @@ export default function App() {
             .select('onboarding_completed')
             .eq('auth_user_id', authData.user.id)
             .single();
-          
+
           setShowOnboarding(!userData?.onboarding_completed);
         } else {
           setShowOnboarding(true);
@@ -109,7 +109,7 @@ export default function App() {
           .select('onboarding_completed')
           .eq('auth_user_id', user.id)
           .single();
-        
+
         setShowOnboarding(!userData?.onboarding_completed);
       }
     } catch (error) {
@@ -137,8 +137,8 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen 
-            name="Details" 
+          <Stack.Screen
+            name="Details"
             component={DetailsScreen}
             options={{ presentation: 'modal' }}
           />
@@ -147,8 +147,4 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-console.log('EXPO ENV URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
-console.log(
-  'EXPO ENV KEY:',
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10)
-);
+

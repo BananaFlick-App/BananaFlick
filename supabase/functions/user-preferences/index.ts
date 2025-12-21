@@ -66,7 +66,16 @@ serve(async (req) => {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return new Response(JSON.stringify(data), {
+
+        // Filter out corrupted data (IDs that are '[object Object]')
+        // This prevents the app from crashing when trying to load details for these invalid items
+        const validData = (data || []).filter((item: any) =>
+          item.item_id &&
+          item.item_id !== '[object Object]' &&
+          !item.item_id.includes('object')
+        );
+
+        return new Response(JSON.stringify(validData), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -93,7 +102,7 @@ serve(async (req) => {
         console.log('Processing like action');
         const { item_id, meta } = body;
         console.log('item_id:', item_id, 'meta:', meta);
-        
+
         // Get or create user record
         let { data: userRecord } = await supabaseAdmin
           .from("users")
@@ -101,7 +110,7 @@ serve(async (req) => {
           .eq("auth_user_id", userId)
           .single();
         console.log('userRecord found:', userRecord);
-        
+
         if (!userRecord) {
           console.log('Creating new user record');
           const { data: newUser, error: createError } = await supabaseAdmin
@@ -156,7 +165,7 @@ serve(async (req) => {
 
       if (action === "dislike") {
         const { item_id } = body;
-        
+
         // Get or create user record
         let { data: userRecord } = await supabaseAdmin
           .from("users")

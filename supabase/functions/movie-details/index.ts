@@ -21,15 +21,24 @@ serve(async (req) => {
       );
     }
 
-    const movie = await getMovieDetails(parseInt(movieId));
-    
+    const movie = await getMovieDetails(movieId);
+
     return new Response(JSON.stringify(movie), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error:", error);
+    const url = new URL(req.url);
+    const movieId = url.searchParams.get("id");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal server error",
+        debug: {
+          receivedId: movieId,
+          type: typeof movieId
+        }
+      }),
+
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

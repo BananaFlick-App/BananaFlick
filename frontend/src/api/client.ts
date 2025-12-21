@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { supabase } from '../supabaseClient';
-
+import { SUPABASE_URL } from '../config/env';
 const FUNCTIONS_URL =
-  `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`;
+  `${SUPABASE_URL}/functions/v1`;
 
 const api = axios.create({
   baseURL: FUNCTIONS_URL,
@@ -29,9 +29,30 @@ export const apiClient = {
     return res.data;
   },
 
+  getMovieDetails: async (id: string | number) => {
+    const res = await api.get('/movie-details', {
+      params: { id },
+    });
+    return res.data;
+  },
+
+  /** Genres */
   getGenres: async () => {
     const res = await api.get('/movies', {
       params: { action: 'genres' },
+    });
+    return res.data;
+  },
+
+  /** Discover movies */
+  discoverMovies: async (genre?: string, region?: string, page?: number) => {
+    const res = await api.get('/movies', {
+      params: {
+        action: 'discover',
+        genre,
+        region,
+        page,
+      },
     });
     return res.data;
   },
@@ -98,6 +119,13 @@ export const apiClient = {
       updates,
       { params: { action: 'update-settings' } }
     );
+    return res.data;
+  },
+  /** User */
+  getUser: async () => {
+    const res = await api.get('/user-preferences', {
+      params: { action: 'user' },
+    });
     return res.data;
   },
 };
