@@ -12,28 +12,73 @@ export default function OnboardingScreen() {
   const [location, setLocation] = useState('US');
   const [genres, setGenres] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState('signup'); // 'signup' or 'login'
 
   useEffect(() => {
     loadGenres();
-    checkOnboardingStatus();
   }, []);
 
-  const checkOnboardingStatus = async () => {
+  const handleAuth = async () => {
+    if (!email.includes('@')) {
+      alert('Please enter a valid email');
+      return;
+    }
+    if (password.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('onboarding_completed')
-          .eq('auth_user_id', user.id)
-          .single();
-        
-        if (userData?.onboarding_completed) {
-          navigation.replace('Main');
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        if (data.user) {
+          if (data.session) {
+            alert('Account created! Please enter your name.');
+            setStep(1);
+          } else {
+            alert('Account created! Please check your email for a verification link before logging in.');
+            setStep(0);
+          }
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) {
+          if (error.message.includes('Email not confirmed')) {
+            alert('Please check your email and confirm your account before logging in.');
+            return;
+          }
+          throw error;
+        }
+        if (data.user) {
+          // Check if user already has a profile
+          const { data: profile } = await supabase
+            .from('users')
+            .select('onboarding_completed')
+            .eq('auth_user_id', data.user.id)
+            .single();
+
+          if (profile?.onboarding_completed) {
+            // App.js listener will handle navigation to Main
+          } else {
+            setStep(1);
+          }
         }
       }
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      console.error('Auth error:', error);
+      alert(error.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,7 +92,7 @@ export default function OnboardingScreen() {
   };
 
   const toggleGenre = (genreId) => {
-    setSelectedGenres(prev => 
+    setSelectedGenres(prev =>
       prev.includes(genreId)
         ? prev.filter(id => id !== genreId)
         : [...prev, genreId]
@@ -76,12 +121,14 @@ export default function OnboardingScreen() {
       } else {
         await apiClient.completeOnboarding(name, selectedGenres, location);
       }
-      
-      // Mark onboarding as complete
-      // Skip storage upload for now - not critical for onboarding completion
-      // await supabase.storage.from('app').upload('onboarding_complete', new Blob(['1']));
-      
-      navigation.replace('Main');
+
+      // Update local user metadata to trigger the auth listener in App.js
+      await supabase.auth.updateUser({
+        data: { onboarding_completed: true }
+      });
+
+      // navigation.replace('Main') is intentionally removed as the App state change 
+      // will handle switching navigators automatically.
     } catch (error) {
       console.error('Error completing onboarding:', error);
       alert('Error saving preferences. Please try again.');
@@ -93,12 +140,41 @@ export default function OnboardingScreen() {
   if (step === 0) {
     return (
       <View style={styles.container}>
-        <Image source={require('../assets/BananaFlick-logo.png')} style={styles.logo} />
-        <Text style={styles.title}>Welcome to BananaFlick</Text>
-        <Text style={styles.subtitle}>Discover movies tailored just for you</Text>
-        <TouchableOpacity style={styles.button} onPress={() => setStep(1)}>
-          <Text style={styles.buttonText}>Get Started</Text>
-        </TouchableOpacity>
+        <View style={styles.centerContent}>
+          <Image source={require('../assets/BananaFlick-logo.png')} style={styles.logo} />
+          <Text style={styles.title}>Welcome to BananaFlick</Text>
+          <Text style={styles.subtitle}>Discover movies tailored just for you</Text>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              setAuthMode('signup');
+              setStep(4);
+            }}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Sign Up with Email</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={() => {
+              setAuthMode('login');
+              setStep(4);
+            }}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>Login with Email</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guestLink}
+            onPress={() => setStep(1)}
+            disabled={loading}
+          >
+            <Text style={styles.guestLinkText}>Continue as Guest</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -115,8 +191,8 @@ export default function OnboardingScreen() {
           onChangeText={setName}
           autoFocus
         />
-        <TouchableOpacity 
-          style={[styles.button, !name.trim() && styles.buttonDisabled]} 
+        <TouchableOpacity
+          style={[styles.button, !name.trim() && styles.buttonDisabled]}
           onPress={() => setStep(2)}
           disabled={!name.trim()}
         >
@@ -150,8 +226,8 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity 
-          style={[styles.button, selectedGenres.length === 0 && styles.buttonDisabled]} 
+        <TouchableOpacity
+          style={[styles.button, selectedGenres.length === 0 && styles.buttonDisabled]}
           onPress={() => setStep(3)}
           disabled={selectedGenres.length === 0}
         >
@@ -163,7 +239,7 @@ export default function OnboardingScreen() {
 
   if (step === 3) {
     const commonLocations = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'ES', 'IT', 'JP', 'KR', 'IN', 'BR', 'MX'];
-    
+
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Where are you located?</Text>
@@ -197,8 +273,8 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity 
-          style={styles.button} 
+        <TouchableOpacity
+          style={styles.button}
           onPress={handleComplete}
           disabled={loading}
         >
@@ -208,6 +284,74 @@ export default function OnboardingScreen() {
             <Text style={styles.buttonText}>Complete Setup</Text>
           )}
         </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  if (step === 4) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.centerContent}>
+        <TouchableOpacity style={styles.backButton} onPress={() => setStep(0)}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.title}>
+          {authMode === 'signup' ? 'Create Account' : 'Welcome Back'}
+        </Text>
+        <Text style={styles.subtitle}>
+          {authMode === 'signup'
+            ? 'Sign up to save your favorites across devices'
+            : 'Login to access your personalized movies'}
+        </Text>
+
+        <View style={styles.authForm}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="email@example.com"
+            placeholderTextColor="#666"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoFocus
+          />
+
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="••••••••"
+            placeholderTextColor="#666"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {authMode === 'signup' ? 'Sign Up' : 'Login'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.switchAuth}
+            onPress={() => setAuthMode(authMode === 'signup' ? 'login' : 'signup')}
+          >
+            <Text style={styles.switchAuthText}>
+              {authMode === 'signup'
+                ? 'Already have an account? Login'
+                : "Don't have an account? Sign Up"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     );
   }
@@ -224,7 +368,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
     flexGrow: 1,
-  },  
+  },
   logo: {
     width: 120,
     height: 120,
@@ -329,5 +473,59 @@ const styles = StyleSheet.create({
   },
   locationTextSelected: {
     color: '#fff',
+  },
+  centerContent: {
+    justifyContent: 'center',
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  secondaryButton: {
+    backgroundColor: '#333',
+    marginTop: 15,
+  },
+  secondaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  guestLink: {
+    marginTop: 25,
+    padding: 10,
+    alignSelf: 'center',
+  },
+  guestLinkText: {
+    color: '#999',
+    fontSize: 16,
+    textDecorationLine: 'underline',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    padding: 10,
+    zIndex: 10,
+  },
+  backButtonText: {
+    color: '#e50914',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authForm: {
+    marginTop: 20,
+  },
+  label: {
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  switchAuth: {
+    marginTop: 20,
+    padding: 10,
+    alignItems: 'center',
+  },
+  switchAuthText: {
+    color: '#999',
+    fontSize: 14,
   },
 });

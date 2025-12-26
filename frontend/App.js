@@ -65,10 +65,12 @@ export default function App() {
     try {
       checkOnboardingStatus();
 
-      // Listen for auth changes
+      // Listen for auth changes to re-evaluate onboarding
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
           setShowOnboarding(true);
+        } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+          checkOnboardingStatus();
         }
       });
 
@@ -87,9 +89,7 @@ export default function App() {
 
       if (!user) {
         // Create anonymous session for new users
-        console.log('Signing in anonymously...');
         const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-        console.log('Anonymous sign in result:', authData, authError);
         if (authData.user) {
           // Check if onboarding is completed
           const { data: userData } = await supabase
@@ -135,13 +135,18 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen
-            name="Details"
-            component={DetailsScreen}
-            options={{ presentation: 'modal' }}
-          />
+          {showOnboarding ? (
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          ) : (
+            <>
+              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen
+                name="Details"
+                component={DetailsScreen}
+                options={{ presentation: 'modal' }}
+              />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

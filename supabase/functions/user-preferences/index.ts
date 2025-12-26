@@ -163,6 +163,34 @@ serve(async (req) => {
         });
       }
 
+      if (action === "unlike") {
+        const { item_id } = body;
+
+        // Get user record
+        const { data: userRecord } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("auth_user_id", userId)
+          .single();
+
+        if (!userRecord) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { error } = await supabaseAdmin
+          .from("likes")
+          .delete()
+          .eq("user_id", userRecord.id)
+          .eq("item_id", String(item_id));
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (action === "dislike") {
         const { item_id } = body;
 
@@ -206,6 +234,48 @@ serve(async (req) => {
 
         if (error) throw error;
         return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (action === "mark-seen") {
+        const { item_ids } = body;
+        if (!Array.isArray(item_ids)) {
+          return new Response(JSON.stringify({ error: "item_ids must be an array" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get user record
+        const { data: userRecord } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("auth_user_id", userId)
+          .single();
+
+        if (!userRecord) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const hideUntil = new Date();
+        hideUntil.setHours(hideUntil.getHours() + 24);
+
+        const { error } = await supabaseAdmin
+          .from("dislikes")
+          .upsert(
+            item_ids.map(id => ({
+              user_id: userRecord.id,
+              item_id: String(id),
+              hide_until: hideUntil.toISOString()
+            })),
+            { onConflict: "user_id,item_id" }
+          );
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -279,7 +349,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "Invalid action" }),
+      JSON.stringify({ error: `Invalid action: ${action} for method: ${method}` }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

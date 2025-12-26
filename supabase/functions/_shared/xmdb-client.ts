@@ -66,61 +66,89 @@ export async function xmdbGet(path: string, query: Record<string, any> = {}): Pr
   }
 }
 
+export const GENRE_MAP: Record<number, string> = {
+  28: "Action",
+  12: "Adventure",
+  16: "Animation",
+  35: "Comedy",
+  80: "Crime",
+  99: "Documentary",
+  18: "Drama",
+  10751: "Family",
+  14: "Fantasy",
+  36: "History",
+  27: "Horror",
+  10402: "Music",
+  9648: "Mystery",
+  10749: "Romance",
+  878: "Science Fiction",
+  10770: "TV Movie",
+  53: "Thriller",
+  10752: "War",
+  37: "Western"
+};
+
+export function getGenreIdByName(name: string): number | undefined {
+  const entry = Object.entries(GENRE_MAP).find(([_, v]) => v.toLowerCase() === name.toLowerCase());
+  return entry ? parseInt(entry[0]) : undefined;
+}
+
+export function getGenreNameById(id: number | string): string | undefined {
+  return GENRE_MAP[parseInt(String(id))];
+}
+
 export async function getGenres(): Promise<any> {
   // Return static genre list for now
   return {
-    genres: [
-      { id: 28, name: "Action" },
-      { id: 12, name: "Adventure" },
-      { id: 16, name: "Animation" },
-      { id: 35, name: "Comedy" },
-      { id: 80, name: "Crime" },
-      { id: 99, name: "Documentary" },
-      { id: 18, name: "Drama" },
-      { id: 10751, name: "Family" },
-      { id: 14, name: "Fantasy" },
-      { id: 36, name: "History" },
-      { id: 27, name: "Horror" },
-      { id: 10402, name: "Music" },
-      { id: 9648, name: "Mystery" },
-      { id: 10749, name: "Romance" },
-      { id: 878, name: "Science Fiction" },
-      { id: 10770, name: "TV Movie" },
-      { id: 53, name: "Thriller" },
-      { id: 10752, name: "War" },
-      { id: 37, name: "Western" }
-    ]
+    genres: Object.entries(GENRE_MAP).map(([id, name]) => ({ id: parseInt(id), name }))
   };
 }
 
 export async function discoverMovies(params: {
   page?: number;
   region?: string;
-  with_genres?: string;
+  with_genres?: string | number;
   sort_by?: string;
 }): Promise<XMDBResponse> {
   try {
-    // Use 'discover' endpoint to match backend behavior
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, any> = {
+      count: 100, // Fetch more for better filtering/variety
+      page: params.page || 1
+    };
+    if (params.region) queryParams.region = params.region;
 
-    // Use count for pagination (max 50)
-    const count = Math.min(50, (params.page || 1) * 20);
-    queryParams.count = count;
+    // Handle genre filtering - the API might prefer names or our IDs might need mapping
+    if (params.with_genres) {
+      const genreName = getGenreNameById(params.with_genres);
+      queryParams.with_genres = genreName || String(params.with_genres);
+    }
 
-    // But for now, let's use trending which gives popular movies
+    if (params.sort_by) queryParams.sort_by = params.sort_by;
+
     const response = await xmdbGet("trending", queryParams);
 
     // Transform XMDB response to match expected format
-    const movies = (response.results || []).map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      poster_path: item.poster_url,
-      overview: item.plot,
-      release_date: item.release_year ? `${item.release_year}-01-01` : null,
-      vote_average: item.rating,
-      genre_ids: item.genres?.map((g: any) => g.id || g) || [],
-      backdrop_path: null,
-    }));
+    const movies = (response.results || []).map((item: any) => {
+      // Convert response genres (strings) back to our numeric IDs for consistency
+      const genreIds = (item.genres || []).map((g: any) => {
+        if (typeof g === 'number') return g;
+        if (typeof g === 'string') return getGenreIdByName(g);
+        if (typeof g === 'object' && g.id) return g.id;
+        if (typeof g === 'object' && g.name) return getGenreIdByName(g.name);
+        return undefined;
+      }).filter((id: any) => id !== undefined);
+
+      return {
+        id: item.id,
+        title: item.title,
+        poster_path: item.poster_url,
+        overview: item.plot,
+        release_date: item.release_year ? `${item.release_year}-01-01` : null,
+        vote_average: item.rating,
+        genre_ids: genreIds,
+        backdrop_path: null,
+      };
+    });
 
     return {
       results: movies,

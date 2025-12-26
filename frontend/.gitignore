@@ -1,6 +1,7 @@
 node_modules
 .expo
-./backend/.env
+.env
+.env.*
 android
 ios
 .vscode

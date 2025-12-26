@@ -70,6 +70,18 @@ export const apiClient = {
     return res.data;
   },
 
+  /** Unlikes (Remove from Favorites) */
+  unlikeMovie: async (movieId: string | number) => {
+    const res = await api.post(
+      '/user-preferences',
+      {
+        item_id: String(movieId),
+      },
+      { params: { action: 'unlike' } }
+    );
+    return res.data;
+  },
+
   /** Dislikes */
   dislikeMovie: async (movieId: string | number) => {
     const res = await api.post(
@@ -78,6 +90,18 @@ export const apiClient = {
         item_id: String(movieId),
       },
       { params: { action: 'dislike' } }
+    );
+    return res.data;
+  },
+
+  /** Seen tracking (Persist 24h) */
+  markMoviesSeen: async (movieIds: (string | number)[]) => {
+    const res = await api.post(
+      '/user-preferences',
+      {
+        item_ids: movieIds.map(id => String(id)),
+      },
+      { params: { action: 'mark-seen' } }
     );
     return res.data;
   },

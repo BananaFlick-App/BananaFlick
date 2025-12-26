@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { apiClient } from '../api/client';
 import { useNavigation } from '@react-navigation/native';
 
@@ -44,35 +44,50 @@ export default function FavoritesScreen() {
     return null;
   };
 
+  const handleRemove = async (movieId) => {
+    try {
+      await apiClient.unlikeMovie(movieId);
+      setFavorites(prev => prev.filter(item => item.item_id !== String(movieId)));
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+      const message = error.response?.data?.error || error.response?.data?.message || 'Failed to remove from favorites';
+      Alert.alert('Error', message);
+    }
+  };
+
   const renderFavorite = ({ item }) => {
     const posterUrl = getPosterUrl(item.meta);
     const title = item.meta?.title || item.item_id;
 
     return (
-      <TouchableOpacity
-        style={styles.movieCard}
-        onPress={() => {
-          if (item.item_id) {
-            navigation.navigate('Details', { movieId: item.item_id });
-          }
-        }}
-      >
-        {posterUrl ? (
-          <Image source={{ uri: posterUrl }} style={styles.poster} />
-        ) : (
-          <View style={[styles.poster, styles.placeholder]}>
-            <Text style={styles.placeholderText}>No Image</Text>
-          </View>
-        )}
+      <View style={styles.movieCard}>
+        <TouchableOpacity
+          onPress={() => {
+            if (item.item_id) {
+              navigation.navigate('Details', { movieId: item.item_id });
+            }
+          }}
+        >
+          {posterUrl ? (
+            <Image source={{ uri: posterUrl }} style={styles.poster} />
+          ) : (
+            <View style={[styles.poster, styles.placeholder]}>
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <View style={styles.movieInfo}>
-          <Text style={styles.movieTitle} numberOfLines={2}>
+          <Text style={styles.movieTitle} numberOfLines={1}>
             {title}
           </Text>
-          <Text style={styles.movieDate}>
-            {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
-          </Text>
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => handleRemove(item.item_id)}
+          >
+            <Text style={styles.removeButtonText}>Remove ❤️</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -184,13 +199,22 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  movieDate: {
-    color: '#999',
+  removeButton: {
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    borderWidth: 1,
+    borderColor: '#e50914',
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  removeButtonText: {
+    color: '#e50914',
     fontSize: 12,
+    fontWeight: '700',
   },
 });
 

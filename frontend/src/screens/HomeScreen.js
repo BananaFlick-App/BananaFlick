@@ -10,18 +10,7 @@ export default function HomeScreen({ navigation }) {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    // HARDCODED MOCK DATA FOR DEBUGGING
-    const mockMovie = {
-      id: 'mock-1',
-      title: 'Debug Movie',
-      poster_path: 'https://kabhoom.com/images/gun_chi.jpg',
-      // Using a known public image or one from the previous logs
-      overview: 'This is a hardcoded mock movie to test UI rendering independent of API.',
-      rating: 9.9
-    };
-    setPool([mockMovie]);
-    // fetchInitial(true); // DISABLED FOR DEBUGGING
-    console.log('Mock movie set:', mockMovie);
+    fetchInitial(true);
   }, []);
 
   async function fetchInitial(append = false) {
@@ -76,7 +65,9 @@ export default function HomeScreen({ navigation }) {
         title: item.title,
         poster_path: item.poster_path || item.poster,
         overview: item.overview,
-        release_date: item.release_date
+        release_date: item.release_date,
+        vote_average: item.vote_average ?? item.rating,
+        genre_ids: item.genre_ids
       };
       const response = await apiClient.likeMovie(item.id, meta);
       console.log('Liked movie response:', response);
@@ -112,12 +103,6 @@ export default function HomeScreen({ navigation }) {
             onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
             onLoad={() => console.log('Image loaded for:', item.title)}
           />
-          <View style={{ position: 'absolute', top: 50, left: 10, zIndex: 999, backgroundColor: 'rgba(0,0,0,0.8)', padding: 10 }}>
-            <Text style={{ color: 'lime', fontWeight: 'bold' }}>DEBUG MODE ACTIVE</Text>
-            <Text style={{ color: 'white' }}>Pool Size: {pool.length}</Text>
-            <Text style={{ color: 'white' }}>Current Index: {current}</Text>
-            <Text style={{ color: 'yellow' }}>Poster URL: {getPosterUrl(item.poster_path || item.poster || item.image)}</Text>
-          </View>
           <View style={styles.info}>
             <Text style={styles.rating}>⭐ {item.vote_average ?? item.rating}</Text>
             <Text style={styles.title}>{item.title}</Text>
