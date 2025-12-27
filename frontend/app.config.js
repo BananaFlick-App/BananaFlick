@@ -4,8 +4,10 @@ dotenv.config();
 export default {
   expo: {
     android: {
-      package: "com.psgtatitos.bananaflick"
+      package: "com.psgtatitos.bananaflick",
+      versionCode: 5
     },
+    version: "1.0.2",
     name: "BananaFlick",
     slug: "bananaflick",
     scheme: "com.psgtatitos.bananaflick",

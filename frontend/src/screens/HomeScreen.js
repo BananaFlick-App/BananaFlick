@@ -10,19 +10,34 @@ export default function HomeScreen({ navigation }) {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
+    console.log('--- HOMESCREEN MOUNTED: V1.0.2 - NEW LOGIC ACTIVE ---');
     fetchInitial(true);
   }, []);
 
   async function fetchInitial(append = false) {
     try {
-      // Use random page or iterate? For now random to ensure variety
-      const randomPage = Math.floor(Math.random() * 5) + 1;
-      const data = await apiClient.discoverMovies(undefined, 'US', randomPage);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user logged in, cannot fetch recommendations');
+        return;
+      }
+
+      console.log('Fetching recommendations for user:', user.id);
+      // Use the new extraParams for clean cache-busting
+      const data = await apiClient.getMovies(user.id, 'recommend', { v: Date.now() });
       const results = data && data.results ? data.results : [];
       console.log('Fetched movies, count:', results.length);
+      if (results.length > 0) {
+        console.log('Movie pool preview (shuffled):', results.slice(0, 5).map(m => `${m.title} [${m.id}]`));
+      }
 
       if (append) {
-        setPool(prev => [...prev, ...results]);
+        setPool(prev => {
+          // Filter out duplicates if appending
+          const existingIds = new Set(prev.map(m => String(m.id)));
+          const uniqueNew = results.filter(m => !existingIds.has(String(m.id)));
+          return [...prev, ...uniqueNew];
+        });
       } else {
         setPool(results);
         setCurrent(0);
@@ -34,13 +49,19 @@ export default function HomeScreen({ navigation }) {
 
   async function reshuffle() {
     console.log('Reshuffle button pressed, pool size:', pool.length);
-    if (pool.length < 5) {
-      console.log('Pool low, fetching more movies');
-      await fetchInitial(true);
+
+    // Mark current pool as seen so they don't reappear immediately
+    if (pool.length > 0) {
+      try {
+        const ids = pool.map(m => m.id);
+        await apiClient.markMoviesSeen(ids);
+      } catch (e) {
+        console.warn('Failed to mark movies as seen:', e);
+      }
     }
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    setPool(shuffled);
-    setCurrent(0);
+
+    // Fetch fresh recommendations instead of just randomizing local pool
+    await fetchInitial(false);
   }
 
 
@@ -71,11 +92,14 @@ export default function HomeScreen({ navigation }) {
       };
       const response = await apiClient.likeMovie(item.id, meta);
       console.log('Liked movie response:', response);
-      setCurrent(i => i + 1);
+
+      // Remove from pool and update index
+      setPool(prev => prev.filter(m => String(m.id) !== String(item.id)));
       checkAndRefetch();
     } catch (e) {
       console.error('Error liking movie:', e);
-      setCurrent(i => i + 1);
+      // Remove anyway to keep moving
+      setPool(prev => prev.filter(m => String(m.id) !== String(item.id)));
       checkAndRefetch();
     }
   }
@@ -87,7 +111,8 @@ export default function HomeScreen({ navigation }) {
     } catch (e) {
       console.error('Error disliking movie:', e);
     }
-    setCurrent(i => i + 1);
+    // Remove from pool and update index
+    setPool(prev => prev.filter(m => String(m.id) !== String(item.id)));
     checkAndRefetch();
   }
 
@@ -107,6 +132,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.rating}>⭐ {item.vote_average ?? item.rating}</Text>
             <Text style={styles.title}>{item.title}</Text>
             <Text numberOfLines={3} style={styles.desc}>{item.overview ?? item.description}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>Build V1.0.2 - Updated: {new Date().toLocaleTimeString()}</Text>
           </View>
 
           <View style={styles.actions} pointerEvents="box-none">

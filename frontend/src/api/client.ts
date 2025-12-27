@@ -22,9 +22,9 @@ api.interceptors.request.use(async (config) => {
 
 export const apiClient = {
   /** Movies */
-  getMovies: async (userId?: string, action = 'recommend') => {
+  getMovies: async (userId?: string, action = 'recommend', extraParams = {}) => {
     const res = await api.get('/movies', {
-      params: { action, userId },
+      params: { action, userId, ...extraParams },
     });
     return res.data;
   },

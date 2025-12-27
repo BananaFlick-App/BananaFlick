@@ -86,8 +86,8 @@ serve(async (req) => {
         if (userError || !user) {
           console.log('User not found or error, using default recommendations');
           try {
-            // Fallback to default recommendations
-            const data = await discoverMovies({ page: 1, region: "US" });
+            // Fallback with random page for variety
+            const data = await discoverMovies({ page: Math.floor(Math.random() * 10) + 1, region: "US" });
             return new Response(JSON.stringify(data), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -107,8 +107,8 @@ serve(async (req) => {
         if (!userRecord) {
           console.log('User record not found, using default recommendations');
           try {
-            // Fallback to default recommendations
-            const data = await discoverMovies({ page: 1, region: "US" });
+            // Fallback with random page
+            const data = await discoverMovies({ page: Math.floor(Math.random() * 10) + 1, region: "US" });
             return new Response(JSON.stringify(data), {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -142,26 +142,34 @@ serve(async (req) => {
 
         let allMovies: XMDBMovie[] = [];
 
-        // Fetch movies for each favorite genre with some randomness
-        for (const genre of genres.slice(0, 5)) { // Top 5 genres
+        // Fetch movies for each favorite genre with more randomness
+        // Shuffle the genres list itself so we don't always pick the same ones if more than 5
+        const shuffledGenres = [...genres].sort(() => Math.random() - 0.5);
+
+        for (const genre of shuffledGenres.slice(0, 5)) {
           try {
+            console.log(`[Recommend] Fetching genre: ${genre}`);
             const data = await discoverMovies({
               with_genres: genre,
               region,
-              page: Math.floor(Math.random() * 5) + 1,
+              page: Math.floor(Math.random() * 40) + 1, // Even wider range
             });
-            allMovies = [...allMovies, ...(data.results || [])];
+            const genreMovies = data.results || [];
+            console.log(`[Recommend]   - Got ${genreMovies.length} movies for genre ${genre}`);
+            allMovies = [...allMovies, ...genreMovies];
           } catch (e) {
             console.error(`Error fetching genre ${genre}:`, e);
           }
         }
 
         // If still too few movies, get popular movies for the region
-        if (allMovies.length < 20) {
-          console.log('Fetching regional trending movies to fill pool');
-          const data = await discoverMovies({ region, page: Math.floor(Math.random() * 3) + 1 });
+        if (allMovies.length < 40) {
+          console.log('[Recommend] Pool small, fetching more from broad trending');
+          const data = await discoverMovies({ region, page: Math.floor(Math.random() * 20) + 1 });
           allMovies = [...allMovies, ...(data.results || [])];
         }
+
+        console.log(`[Recommend] Total raw movies fetched: ${allMovies.length}`);
 
         // Create a set of favorite genre IDs for fast lookup
         const favoriteGenreSet = new Set(genres.map(g => String(g)));
@@ -217,12 +225,14 @@ serve(async (req) => {
           filteredMovies = [...filteredMovies, ...others];
         }
 
-        // Sort by final score descending and take top 20
-        const finalResults = filteredMovies
-          .sort((a, b) => (b.score || 0) - (a.score || 0))
-          .slice(0, 20);
+        // Sort by final score descending
+        const sortedResults = filteredMovies.sort((a, b) => (b.score || 0) - (a.score || 0));
 
-        console.log('[Recommend] Final results:', finalResults.map(m => `${m.title} (${m.score.toFixed(1)})`));
+        // Take top 40 and then shuffle THEM to avoid identical top-5 every time
+        const topPool = sortedResults.slice(0, 40);
+        const finalResults = topPool.sort(() => Math.random() - 0.5).slice(0, 20);
+
+        console.log('[Recommend] Final results titles:', finalResults.map(m => m.title).join(', '));
 
         return new Response(
           JSON.stringify({
