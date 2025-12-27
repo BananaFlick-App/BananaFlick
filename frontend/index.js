@@ -1,5 +1,5 @@
 // 2️⃣ Load polyfills BEFORE any app code
-import './src/utils/url-polyfill';
+import 'react-native-url-polyfill/auto';
 
 // 3️⃣ Normal Expo bootstrap
 import { registerRootComponent } from 'expo';

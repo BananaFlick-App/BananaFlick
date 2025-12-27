@@ -11,6 +11,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import DetailsScreen from './src/screens/DetailsScreen';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { enableScreens } from 'react-native-screens';
+import Constants from 'expo-constants';
 enableScreens();
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,6 +62,12 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    // Check for critical config first
+    const hasConfig = Constants.expoConfig?.extra?.supabaseUrl && Constants.expoConfig?.extra?.supabaseAnonKey;
+    if (!hasConfig) {
+      console.warn('⚠️ Supabase configuration missing. App may not function correctly.');
+    }
+
     // Try to initialize and check onboarding status
     try {
       checkOnboardingStatus();
@@ -121,11 +128,32 @@ export default function App() {
     }
   };
 
+  const hasConfig = Constants.expoConfig?.extra?.supabaseUrl && Constants.expoConfig?.extra?.supabaseAnonKey;
+
   if (initializing) {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#e50914" />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  if (!hasConfig) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>Configuration Error</Text>
+          <Text style={{ color: '#ccc', textAlign: 'center', marginBottom: 30 }}>
+            The app is missing essential configuration (Supabase URL/Key).
+            If this is a release build, please ensure EAS Secrets are configured correctly.
+          </Text>
+          <View style={{ backgroundColor: '#222', padding: 15, borderRadius: 8 }}>
+            <Text style={{ color: '#888', fontFamily: 'monospace' }}>
+              Check BUILD_GUIDE.md in the project for instructions.
+            </Text>
+          </View>
         </View>
       </SafeAreaProvider>
     );

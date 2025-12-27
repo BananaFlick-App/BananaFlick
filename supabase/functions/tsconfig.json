@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
-    "lib": ["esnext", "dom"],
+    "lib": [
+      "esnext"
+    ],
+    "allowImportingTsExtensions": true,
     "strict": false,
     "skipLibCheck": true,
     "allowJs": true,
     "noEmit": true
   }
 }
-
